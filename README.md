@@ -56,6 +56,9 @@ paties kompiuterio.
 
    Kiekviena sekcija turi `📂 Aplankas` (atidaro Finder/Explorer) ir `▶ Groti`
    (patikrina, ar girdėti per kolonėles).
+
+   Garso failai eina į git, tad `git pull` atsineša juos į visas mašinas.
+   Įdėjus naują – `git add garsai && git commit && git push`.
 2. **Civilinės saugos pranešimai** – mygtukai `BALTAS`, `GELTONAS`, `RAUDONAS`
    groja tik paspaudus, tvarkaraščiui įtakos neturi. Failai guli `pranesimai/`
    aplanke ir **keliauja kartu su git**, tad visose mašinose vienodi.
@@ -130,7 +133,7 @@ Tada `launchctl load ~/Library/LaunchAgents/lt.mokykla.skambutis.plist`.
 | Failas | Kam |
 |---|---|
 | `skambutis.py` | visa programa |
-| `garsai/` | pamokų skambučio takeliai, `pries/` – įspėjimui (į git neeina) |
+| `garsai/` | pamokų skambučio takeliai, `pries/` – įspėjimui (eina į git) |
 | `pranesimai/` | BALTAS/GELTONAS/RAUDONAS (į git eina) |
 | `config.json` | nustatymai (sukuriamas automatiškai) |
 | `skambutis.log` | kas ir kada skambėjo |
