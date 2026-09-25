@@ -47,14 +47,20 @@ paties kompiuterio.
 
 1. **Garso takeliai** – mp3/wav failus įmesti į aplanką `garsai/` šalia
    programos, puslapyje spausti `Atnaujinti sąrašą` ir pažymėti varneles.
+   `📂 Atidaryti aplanką` atidaro jį Finder/Explorer lange.
    `Groti bandomąjį` patikrina, ar girdėti per kolonėles.
-2. **Pamokos** – `+ Pridėti pamoką`, nustatyti pradžios ir pabaigos laiką.
+2. **Civilinės saugos pranešimai** – mygtukai `BALTAS`, `GELTONAS`, `RAUDONAS`
+   groja tik paspaudus, tvarkaraščiui įtakos neturi. Failai guli `pranesimai/`
+   aplanke ir **keliauja kartu su git**, tad visose mašinose vienodi.
+   Pakeisti – įmesti kitą `BALTAS.mp3` (tinka ir wav/m4a/ogg/flac) ir
+   commit'inti. Nėra failo – mygtukas neaktyvus.
+3. **Pamokos** – `+ Pridėti pamoką`, nustatyti pradžios ir pabaigos laiką.
    Nereikalingą pašalinti `✕`. Rikiuojama automatiškai išsaugant.
-3. **Nustatymai** – kiek minučių prieš pamoką skambinti, ar skambinti į
+4. **Nustatymai** – kiek minučių prieš pamoką skambinti, ar skambinti į
    pabaigą, kuriomis savaitės dienomis (numatyta Pr–Pn), ir `Paleisti anksčiau`
    (ms) – kompensacija garso grotuvo startui.
-4. `💾 Išsaugoti` – įrašoma į `config.json`.
-5. `▶️ Paleisti fone` – startuoja passive dalį **ir įrašo ją į sistemos
+5. `💾 Išsaugoti` – įrašoma į `config.json`.
+6. `▶️ Paleisti fone` – startuoja passive dalį **ir įrašo ją į sistemos
    autostartą**: po kompiuterio perkrovimo skambutis pasileidžia pats.
    Daugiau nieko daryti nereikia. Šalia rodoma būsena ir kada sekantis
    skambutis. `⏹ Stabdyti foną` – sustabdo ir išima iš autostarto.
@@ -117,7 +123,8 @@ Tada `launchctl load ~/Library/LaunchAgents/lt.mokykla.skambutis.plist`.
 | Failas | Kam |
 |---|---|
 | `skambutis.py` | visa programa |
-| `garsai/` | garso takeliai |
+| `garsai/` | pamokų skambučio takeliai (į git neeina) |
+| `pranesimai/` | BALTAS/GELTONAS/RAUDONAS (į git eina) |
 | `config.json` | nustatymai (sukuriamas automatiškai) |
 | `skambutis.log` | kas ir kada skambėjo |
 | `daemon.pid` | fone veikiančio proceso ID |

@@ -11,6 +11,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 GARSAI = os.path.join(HERE, "garsai")
+PRANESIMAI = os.path.join(HERE, "pranesimai")
+SIGNALAI = ["BALTAS", "GELTONAS", "RAUDONAS"]
 CFG = os.path.join(HERE, "config.json")
 LOG = os.path.join(HERE, "skambutis.log")
 PIDF = os.path.join(HERE, "daemon.pid")
@@ -56,6 +58,23 @@ def log(msg):
         print(line, flush=True)
     with open(LOG, "a", encoding="utf-8") as f:
         f.write(line + "\n")
+
+
+def signal_file(name):
+    """pranesimai/<VARDAS>.<ext> arba None. Vardas tik is SIGNALAI - jokio path traversal."""
+    if name not in SIGNALAI:
+        return None
+    for e in EXT:
+        p = os.path.join(PRANESIMAI, name + e)
+        if os.path.exists(p):
+            return p
+    return None
+
+
+def open_folder(path):
+    os.makedirs(path, exist_ok=True)
+    cmd = {"darwin": ["open", path], "win32": ["explorer", path]}.get(sys.platform, ["xdg-open", path])
+    subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def available_tracks():
@@ -315,6 +334,7 @@ PAGE = """<!doctype html><html lang="lt"><meta charset="utf-8">
 Skambučiui parenkamas atsitiktinis iš pažymėtų.</p>
 <ul id="tracks"></ul>
 <div class="row">
+  <button onclick="post('/aplankas',{kuris:'garsai'})">📂 Atidaryti aplanką</button>
   <button onclick="load()">Atnaujinti sąrašą</button>
   <button onclick="post('/test',{})">Groti bandomąjį</button>
 </div>
@@ -333,6 +353,12 @@ Skambučiui parenkamas atsitiktinis iš pažymėtų.</p>
   <span class="muted">kompensuoja garso grotuvo startą (numatyta 200)</span>
 </div>
 <div class="row" id="days"></div>
+
+<h2>Civilinės saugos pranešimai</h2>
+<p class="muted">Groja tik paspaudus. Failai aplanke <code id="pranesimai"></code>,
+keliauja kartu su programa per git.</p>
+<div class="row" id="signalai"></div>
+<div class="row"><button onclick="post('/aplankas',{kuris:'pranesimai'})">📂 Atidaryti pranešimų aplanką</button></div>
 
 <details style="margin-top:28px"><summary class="muted">Žurnalas (kas ir kada skambėjo, klaidos)</summary>
 <pre id="log" style="font-size:12px;overflow:auto;max-height:240px;white-space:pre-wrap"></pre></details>
@@ -359,6 +385,13 @@ async function load(){
     li.innerHTML=`<label><input type="checkbox" ${cfg.tracks.includes(f)?"checked":""} data-f="${f}"> ${f}</label>`;
     tracks.appendChild(li);
   });
+  pranesimai.textContent=d.garsai.replace(/garsai$/,"pranesimai");
+  const SPALVOS={BALTAS:["#f5f5f5","#111"],GELTONAS:["#f5c518","#111"],RAUDONAS:["#d33","#fff"]};
+  signalai.innerHTML=Object.entries(d.signalai).map(([n,yra])=>{
+    const [bg,fg]=SPALVOS[n];
+    return `<button onclick="post('/signalas',{name:'${n}'})" ${yra?"":"disabled title='Failo nėra'"}
+      style="background:${bg};color:${fg};border:1px solid #8888;padding:10px 18px;font-weight:600">${n}${yra?"":" (nėra)"}</button>`;
+  }).join("");
   drawLessons();
   pre.value=cfg.pre_minutes; end.checked=cfg.ring_end; lead.value=cfg.lead_ms;
   days.innerHTML=DAYS.map((n,i)=>`<label><input type="checkbox" data-d="${i}" ${cfg.days.includes(i)?"checked":""}> ${n}</label>`).join(" ");
@@ -415,7 +448,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/":
             self._send(PAGE, "text/html")
         elif self.path == "/data":
-            self._send(json.dumps({"cfg": cfg, "available": available_tracks(), "garsai": GARSAI}))
+            self._send(json.dumps({"cfg": cfg, "available": available_tracks(), "garsai": GARSAI,
+                                   "signalai": {n: bool(signal_file(n)) for n in SIGNALAI}}))
         elif self.path == "/log":
             try:
                 lines = open(LOG, encoding="utf-8", errors="replace").read().splitlines()[-20:]
@@ -438,6 +472,14 @@ class Handler(BaseHTTPRequestHandler):
             self._send(json.dumps({"cfg": cfg}))
         elif self.path == "/test":
             threading.Thread(target=ring, args=(cfg, "bandomasis"), daemon=True).start()
+            self._send("{}")
+        elif self.path == "/signalas":
+            p = signal_file(json.loads(body).get("name", ""))
+            if p:
+                threading.Thread(target=play, args=(p,), daemon=True).start()
+            self._send(json.dumps({"ok": bool(p)}))
+        elif self.path == "/aplankas":
+            open_folder(PRANESIMAI if json.loads(body).get("kuris") == "pranesimai" else GARSAI)
             self._send("{}")
         elif self.path == "/quit":
             self._send("{}")
