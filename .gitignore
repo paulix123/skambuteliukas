@@ -1,0 +1,11 @@
+# lokalūs nustatymai ir būsena
+config.json
+daemon.pid
+skambutis.log
+
+# garso takeliai (kiekviena mokykla savo)
+garsai/*
+!garsai/.gitkeep
+
+__pycache__/
+.DS_Store
