@@ -106,12 +106,19 @@ def pool(tipas=None, cfg=None):
 
 # --- grojimas ---------------------------------------------------------------
 
-WIN_PS = r"""
+# WAV - SoundPlayer.PlaySync(): blokuoja iki pabaigos, jokiu metaduomenu nereikia
+WIN_WAV = r"""
+$ErrorActionPreference='Stop'
+(New-Object System.Media.SoundPlayer '{path}').PlaySync()
+"""
+
+# mp3/m4a/... - MediaPlayer. Trukmes gali ir nepavykti nuskaityti, tai NE klaida:
+# tada tiesiog laikom procesa gyva, kad garsas nebutu nukirstas.
+WIN_MP3 = r"""
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName PresentationCore
 $p = New-Object System.Windows.Media.MediaPlayer
 $p.Open([uri]'{path}')
-# metaduomenys uzsikrauna asinchroniskai - laukiam iki 5 s
 $n = 0
 while (-not $p.NaturalDuration.HasTimeSpan -and $n -lt 50) {{ Start-Sleep -m 100; $n++ }}
 $p.Volume = 1.0
@@ -119,8 +126,7 @@ $p.Play()
 if ($p.NaturalDuration.HasTimeSpan) {{
   Start-Sleep -s ([int]$p.NaturalDuration.TimeSpan.TotalSeconds + 1)
 }} else {{
-  Write-Error "nepavyko nuskaityti trukmes (trukstamas kodekas?), grojam 15 s"
-  Start-Sleep -s 15
+  Start-Sleep -s 30
 }}
 """
 
@@ -132,8 +138,9 @@ def play(path):
     elif sys.platform == "win32":
         exe = shutil.which("powershell") or \
             r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+        ps = WIN_WAV if path.lower().endswith(".wav") else WIN_MP3
         cmd = [exe, "-NoProfile", "-ExecutionPolicy", "Bypass", "-STA",
-               "-Command", WIN_PS.format(path=path.replace("'", "''"))]
+               "-Command", ps.format(path=path.replace("'", "''"))]
     else:
         for exe in ("paplay", "aplay", "ffplay", "mpv", "cvlc"):
             if shutil.which(exe):
@@ -147,8 +154,9 @@ def play(path):
             log("KLAIDA: nerastas garso grotuvas")
             return
     r = subprocess.run(cmd, capture_output=True, text=True)
-    if r.returncode or (r.stderr or "").strip():
-        log(f"GROTUVO KLAIDA ({os.path.basename(path)}): rc={r.returncode} {(r.stderr or '').strip()[:400]}")
+    if r.returncode:
+        err = " ".join((r.stderr or "").split())[-300:]
+        log(f"GROTUVO KLAIDA ({os.path.basename(path)}): rc={r.returncode} {err}")
 
 
 def ring(tipas, label):
