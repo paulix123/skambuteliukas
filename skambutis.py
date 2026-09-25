@@ -58,18 +58,34 @@ def available_tracks():
 
 # --- grojimas ---------------------------------------------------------------
 
+WIN_PS = r"""
+$ErrorActionPreference='Stop'
+Add-Type -AssemblyName PresentationCore
+$p = New-Object System.Windows.Media.MediaPlayer
+$p.Open([uri]'{path}')
+# metaduomenys uzsikrauna asinchroniskai - laukiam iki 5 s
+$n = 0
+while (-not $p.NaturalDuration.HasTimeSpan -and $n -lt 50) {{ Start-Sleep -m 100; $n++ }}
+$p.Volume = 1.0
+$p.Play()
+if ($p.NaturalDuration.HasTimeSpan) {{
+  Start-Sleep -s ([int]$p.NaturalDuration.TimeSpan.TotalSeconds + 1)
+}} else {{
+  Write-Error "nepavyko nuskaityti trukmes (trukstamas kodekas?), grojam 15 s"
+  Start-Sleep -s 15
+}}
+"""
+
+
 def play(path):
     """Groja faila sinchroniskai sisteminiu grotuvu."""
     if sys.platform == "darwin":
         cmd = ["afplay", path]
     elif sys.platform == "win32":
-        ps = (
-            "Add-Type -AssemblyName PresentationCore;"
-            "$p=New-Object System.Windows.Media.MediaPlayer;"
-            f"$p.Open([uri]'{path}');Start-Sleep -m 700;$p.Play();"
-            "Start-Sleep -s ([int]$p.NaturalDuration.TimeSpan.TotalSeconds+1)"
-        )
-        cmd = ["powershell", "-NoProfile", "-Command", ps]
+        exe = shutil.which("powershell") or \
+            r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+        cmd = [exe, "-NoProfile", "-ExecutionPolicy", "Bypass", "-STA",
+               "-Command", WIN_PS.format(path=path.replace("'", "''"))]
     else:
         for exe in ("paplay", "aplay", "ffplay", "mpv", "cvlc"):
             if shutil.which(exe):
@@ -82,7 +98,9 @@ def play(path):
         else:
             log("KLAIDA: nerastas garso grotuvas")
             return
-    subprocess.run(cmd, check=False)
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode or (r.stderr or "").strip():
+        log(f"GROTUVO KLAIDA ({os.path.basename(path)}): rc={r.returncode} {(r.stderr or '').strip()[:400]}")
 
 
 def ring(cfg, label):
@@ -309,6 +327,9 @@ Skambučiui parenkamas atsitiktinis iš pažymėtų.</p>
 </div>
 <div class="row" id="days"></div>
 
+<details style="margin-top:28px"><summary class="muted">Žurnalas (kas ir kada skambėjo, klaidos)</summary>
+<pre id="log" style="font-size:12px;overflow:auto;max-height:240px;white-space:pre-wrap"></pre></details>
+
 <div class="bar row">
   <button onclick="save()">💾 Išsaugoti</button>
   <button id="dbtn" onclick="toggle()"></button>
@@ -365,6 +386,7 @@ async function refresh(){
   const s=await (await fetch("/status")).json();
   dbtn.textContent=s.running?"⏹ Stabdyti foną":"▶️ Paleisti fone";
   auto.textContent=s.running?(s.autostart?"✅ Veikia fone · startuos ir po perkrovimo":"⚠️ Veikia fone, bet po perkrovimo nestartuos"):"⏸ Nesukasi";
+  fetch("/log").then(r=>r.json()).then(d=>log.textContent=d.log||"(tuščias)");
   next.textContent=s.next?`Sekantis: ${s.next[0]} (${s.next[1]})`:"Šiandien daugiau skambučių nėra";
 }
 load(); setInterval(refresh,5000);
@@ -387,6 +409,12 @@ class Handler(BaseHTTPRequestHandler):
             self._send(PAGE, "text/html")
         elif self.path == "/data":
             self._send(json.dumps({"cfg": cfg, "available": available_tracks(), "garsai": GARSAI}))
+        elif self.path == "/log":
+            try:
+                lines = open(LOG).read().splitlines()[-20:]
+            except OSError:
+                lines = []
+            self._send(json.dumps({"log": "\n".join(lines)}))
         elif self.path == "/status":
             self._send(json.dumps({"running": daemon_state()[1], "next": next_bell(cfg),
                                    "autostart": bool(AUTOSTART and os.path.exists(AUTOSTART))}))
