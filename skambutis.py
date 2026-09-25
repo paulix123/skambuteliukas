@@ -13,6 +13,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 GARSAI = os.path.join(HERE, "garsai")
 PRANESIMAI = os.path.join(HERE, "pranesimai")
 SIGNALAI = ["BALTAS", "GELTONAS", "RAUDONAS"]
+# UI sekcijos: tik ispejimas turi atskira aplanka, pradzia ir pabaiga - is bendro fondo
+TIPAI = {"pries": "Prieš pamoką", "bendras": "Pamokos pradžia ir pabaiga"}
 CFG = os.path.join(HERE, "config.json")
 LOG = os.path.join(HERE, "skambutis.log")
 PIDF = os.path.join(HERE, "daemon.pid")
@@ -20,7 +22,6 @@ PORT = 8777
 EXT = (".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".aiff")
 
 DEFAULT = {
-    "tracks": [],          # failu vardai is garsai/ aplanko
     "pre_minutes": 2,
     "lead_ms": 200,        # kiek anksciau paleisti, kad garsas suskambetu tiksliai
     "ring_end": True,
@@ -40,8 +41,8 @@ DEFAULT = {
 
 def load():
     try:
-        with open(CFG, encoding="utf-8") as f:
-            return {**DEFAULT, **json.load(f)}
+        with open(CFG, encoding="utf-8") as f:  # nezinomus raktus (pvz. sena "tracks") atmetam
+            return {**DEFAULT, **{k: v for k, v in json.load(f).items() if k in DEFAULT}}
     except (FileNotFoundError, json.JSONDecodeError):
         save(DEFAULT)
         return dict(DEFAULT)
@@ -77,9 +78,17 @@ def open_folder(path):
     subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def available_tracks():
-    os.makedirs(GARSAI, exist_ok=True)
-    return sorted(f for f in os.listdir(GARSAI) if f.lower().endswith(EXT))
+def folder(tipas=None):
+    """Tik "pries" turi savo aplanka; visa kita - garsai/ saknis."""
+    return os.path.join(GARSAI, "pries") if tipas == "pries" else GARSAI
+
+
+def pool(tipas=None):
+    """Takeliai aplanke; jei pries/ tuscias - imam is bendro fondo."""
+    p = folder(tipas)
+    os.makedirs(p, exist_ok=True)
+    files = sorted(os.path.join(p, f) for f in os.listdir(p) if f.lower().endswith(EXT))
+    return files if files or tipas != "pries" else pool()
 
 
 # --- grojimas ---------------------------------------------------------------
@@ -129,14 +138,14 @@ def play(path):
         log(f"GROTUVO KLAIDA ({os.path.basename(path)}): rc={r.returncode} {(r.stderr or '').strip()[:400]}")
 
 
-def ring(cfg, label):
-    tracks = [t for t in cfg["tracks"] if os.path.exists(os.path.join(GARSAI, t))]
+def ring(tipas, label):
+    tracks = pool(tipas)
     if not tracks:
-        log(f"{label}: nera garso takeliu")
+        log(f"{label}: nera garso takeliu (idek mp3 i garsai/)")
         return
     t = random.choice(tracks)
-    log(f"{label}: groja {t}")
-    play(os.path.join(GARSAI, t))
+    log(f"{label}: groja {os.path.basename(t)}")
+    play(t)
 
 
 # --- tvarkarastis -----------------------------------------------------------
@@ -154,10 +163,10 @@ def bell_times(cfg, d=None):
         return {}
     out = {}
     for i, les in enumerate(cfg["lessons"], 1):
-        out[minus(les["start"], cfg["pre_minutes"])] = f"{i} pam. -{cfg['pre_minutes']} min"
-        out[les["start"]] = f"{i} pam. pradžia"
+        out[minus(les["start"], cfg["pre_minutes"])] = ("pries", f"{i} pam. -{cfg['pre_minutes']} min")
+        out[les["start"]] = ("pradzia", f"{i} pam. pradžia")
         if cfg.get("ring_end"):
-            out[les["end"]] = f"{i} pam. pabaiga"
+            out[les["end"]] = ("pabaiga", f"{i} pam. pabaiga")
     return out
 
 
@@ -165,7 +174,7 @@ def next_bell(cfg):
     t = bell_times(cfg)
     now = datetime.now().strftime("%H:%M")
     future = sorted(x for x in t if x > now)
-    return (future[0], t[future[0]]) if future else None
+    return (future[0], t[future[0]][1]) if future else None
 
 
 # --- passive dalis ----------------------------------------------------------
@@ -187,10 +196,10 @@ def daemon():
         if now == last:
             continue
         last = now
-        label = bell_times(cfg).get(now)
-        if label:
+        hit = bell_times(cfg).get(now)
+        if hit:
             # atskiroj gijoj: ilgas takelis neturi blokuoti sekancio skambucio
-            threading.Thread(target=ring, args=(cfg, label), daemon=True).start()
+            threading.Thread(target=ring, args=hit, daemon=True).start()
 
 
 AUTOSTART = {
@@ -330,13 +339,13 @@ PAGE = """<!doctype html><html lang="lt"><meta charset="utf-8">
 <h1>🔔 Mokyklos skambutis</h1>
 
 <h2>Garso takeliai</h2>
-<p class="muted">Failai iš aplanko <code id="garsai"></code>. Įmesk mp3/wav ten ir spausk „Atnaujinti“.
-Skambučiui parenkamas atsitiktinis iš pažymėtų.</p>
-<ul id="tracks"></ul>
+<p class="muted">Įspėjimas prieš pamoką turi atskirą aplanką <code>garsai/pries/</code>;
+kol jis tuščias, skamba tas pats, kas pradžiai ir pabaigai. Bendras fondas –
+<code id="garsai"></code>. Jei aplanke keli failai, parenkamas atsitiktinis.</p>
+<div id="takeliai"></div>
 <div class="row">
-  <button onclick="post('/aplankas',{kuris:'garsai'})">📂 Atidaryti aplanką</button>
-  <button onclick="load()">Atnaujinti sąrašą</button>
-  <button onclick="post('/test',{})">Groti bandomąjį</button>
+  <button onclick="post('/aplankas',{kuris:'garsai'})">📂 Bendras fondas</button>
+  <button onclick="load()">Atnaujinti sąrašus</button>
 </div>
 
 <h2>Pamokos</h2>
@@ -379,12 +388,13 @@ async function post(u,b){const r=await fetch(u,{method:"POST",body:JSON.stringif
 async function load(){
   const d=await (await fetch("/data")).json(); cfg=d.cfg;
   garsai.textContent=d.garsai;
-  tracks.innerHTML = d.available.length ? "" : "<li class='muted'>Aplankas tuščias</li>";
-  d.available.forEach(f=>{
-    const li=document.createElement("li");
-    li.innerHTML=`<label><input type="checkbox" ${cfg.tracks.includes(f)?"checked":""} data-f="${f}"> ${f}</label>`;
-    tracks.appendChild(li);
-  });
+  takeliai.innerHTML=Object.entries(d.tipai).map(([k,pav])=>`
+    <div style="border:1px solid #8884;border-radius:8px;padding:10px 14px;margin:8px 0">
+      <b>${pav}</b> ${d.savi[k]?"":"<span class='muted'>· iš bendro fondo</span>"}
+      <ul>${(d.takeliai[k].length?d.takeliai[k]:["(nėra failų)"]).map(f=>`<li>${f}</li>`).join("")}</ul>
+      <button onclick="post('/aplankas',{kuris:'${k}'})">📂 Aplankas</button>
+      <button onclick="post('/test',{tipas:'${k}'})">▶ Groti</button>
+    </div>`).join("");
   pranesimai.textContent=d.garsai.replace(/garsai$/,"pranesimai");
   const SPALVOS={BALTAS:["#f5f5f5","#111"],GELTONAS:["#f5c518","#111"],RAUDONAS:["#d33","#fff"]};
   signalai.innerHTML=Object.entries(d.signalai).map(([n,yra])=>{
@@ -409,7 +419,6 @@ function drawLessons(){
 }
 function addLesson(){cfg.lessons.push({start:"08:00",end:"08:45"});drawLessons()}
 function collect(){
-  cfg.tracks=[...tracks.querySelectorAll("input:checked")].map(c=>c.dataset.f);
   cfg.days=[...days.querySelectorAll("input:checked")].map(c=>+c.dataset.d);
   cfg.pre_minutes=+pre.value; cfg.ring_end=end.checked; cfg.lead_ms=+lead.value;
   cfg.lessons=cfg.lessons.filter(l=>l.start&&l.end).sort((a,b)=>a.start.localeCompare(b.start));
@@ -448,8 +457,11 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/":
             self._send(PAGE, "text/html")
         elif self.path == "/data":
-            self._send(json.dumps({"cfg": cfg, "available": available_tracks(), "garsai": GARSAI,
-                                   "signalai": {n: bool(signal_file(n)) for n in SIGNALAI}}))
+            self._send(json.dumps({
+                "cfg": cfg, "garsai": GARSAI, "tipai": TIPAI,
+                "takeliai": {k: [os.path.basename(f) for f in pool(k)] for k in TIPAI},
+                "savi": {k: bool(pool(k)) and (k != "pries" or pool(k) != pool()) for k in TIPAI},
+                "signalai": {n: bool(signal_file(n)) for n in SIGNALAI}}))
         elif self.path == "/log":
             try:
                 lines = open(LOG, encoding="utf-8", errors="replace").read().splitlines()[-20:]
@@ -471,7 +483,9 @@ class Handler(BaseHTTPRequestHandler):
             save(cfg)
             self._send(json.dumps({"cfg": cfg}))
         elif self.path == "/test":
-            threading.Thread(target=ring, args=(cfg, "bandomasis"), daemon=True).start()
+            tipas = json.loads(body).get("tipas")
+            threading.Thread(target=ring, args=(tipas, f"bandomasis ({tipas or 'bendras'})"),
+                             daemon=True).start()
             self._send("{}")
         elif self.path == "/signalas":
             p = signal_file(json.loads(body).get("name", ""))
@@ -479,7 +493,8 @@ class Handler(BaseHTTPRequestHandler):
                 threading.Thread(target=play, args=(p,), daemon=True).start()
             self._send(json.dumps({"ok": bool(p)}))
         elif self.path == "/aplankas":
-            open_folder(PRANESIMAI if json.loads(body).get("kuris") == "pranesimai" else GARSAI)
+            k = json.loads(body).get("kuris")
+            open_folder(PRANESIMAI if k == "pranesimai" else folder(k if k in TIPAI else None))
             self._send("{}")
         elif self.path == "/quit":
             self._send("{}")
@@ -514,12 +529,14 @@ def ui():
 def selftest():
     cfg = {**DEFAULT, "lessons": [{"start": "08:00", "end": "08:45"}], "pre_minutes": 2}
     t = bell_times(cfg, date(2026, 9, 21))  # pirmadienis
-    assert t == {"07:58": "1 pam. -2 min", "08:00": "1 pam. pradžia", "08:45": "1 pam. pabaiga"}, t
+    assert t == {"07:58": ("pries", "1 pam. -2 min"),
+                 "08:00": ("pradzia", "1 pam. pradžia"),
+                 "08:45": ("pabaiga", "1 pam. pabaiga")}, t
     assert bell_times(cfg, date(2026, 9, 20)) == {}  # sekmadienis
     assert minus("00:01", 2) == "23:59"
     assert minus("08:00", 0) == "08:00"
     assert "08:45" not in bell_times({**cfg, "ring_end": False}, date(2026, 9, 21))
-    for lab in t.values():  # Windows lokale (cp1252) turi suvirskinti kiekviena etikete
+    for _, lab in t.values():  # Windows lokale (cp1252) turi suvirskinti kiekviena etikete
         lab.encode("cp1252")
     print("OK")
 

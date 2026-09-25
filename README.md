@@ -46,9 +46,16 @@ paties kompiuterio.
 ## Naudojimas
 
 1. **Garso takeliai** – mp3/wav failus įmesti į aplanką `garsai/` šalia
-   programos, puslapyje spausti `Atnaujinti sąrašą` ir pažymėti varneles.
-   `📂 Atidaryti aplanką` atidaro jį Finder/Explorer lange.
-   `Groti bandomąjį` patikrina, ar girdėti per kolonėles.
+   programos. Kas aplanke, tas ir naudojama; jei failų keli – kiekvienam
+   skambučiui parenkamas atsitiktinis. Varnelių nėra.
+
+   | Aplankas | Kam |
+   |---|---|
+   | `garsai/` | pamokos pradžiai ir pabaigai |
+   | `garsai/pries/` | įspėjimui prieš pamoką. **Tuščias – skamba tas pats, kas pradžiai** |
+
+   Kiekviena sekcija turi `📂 Aplankas` (atidaro Finder/Explorer) ir `▶ Groti`
+   (patikrina, ar girdėti per kolonėles).
 2. **Civilinės saugos pranešimai** – mygtukai `BALTAS`, `GELTONAS`, `RAUDONAS`
    groja tik paspaudus, tvarkaraščiui įtakos neturi. Failai guli `pranesimai/`
    aplanke ir **keliauja kartu su git**, tad visose mašinose vienodi.
@@ -123,7 +130,7 @@ Tada `launchctl load ~/Library/LaunchAgents/lt.mokykla.skambutis.plist`.
 | Failas | Kam |
 |---|---|
 | `skambutis.py` | visa programa |
-| `garsai/` | pamokų skambučio takeliai (į git neeina) |
+| `garsai/` | pamokų skambučio takeliai, `pries/` – įspėjimui (į git neeina) |
 | `pranesimai/` | BALTAS/GELTONAS/RAUDONAS (į git eina) |
 | `config.json` | nustatymai (sukuriamas automatiškai) |
 | `skambutis.log` | kas ir kada skambėjo |

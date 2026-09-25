@@ -6,6 +6,9 @@ skambutis.log
 # garso takeliai (kiekviena mokykla savo)
 garsai/*
 !garsai/.gitkeep
+!garsai/pries/
+garsai/pries/*
+!garsai/pries/.gitkeep
 
 __pycache__/
 .DS_Store
