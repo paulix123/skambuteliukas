@@ -1,0 +1,36 @@
+2026-09-25 10:28:15 startas
+2026-09-25 11:20:25 bandomasis: nera garso takeliu
+2026-09-25 11:20:29 bandomasis: nera garso takeliu
+2026-09-25 11:20:42 startas
+2026-09-25 11:20:59 2 pam. prad엍a: groja freesound_community-handbell-81953.mp3
+2026-09-25 11:24:59 2 pam. pabaiga: groja freesound_community-handbell-81953.mp3
+2026-09-25 11:28:59 2 pam. prad엍a: groja freesound_community-handbell-81953.mp3
+2026-09-25 11:31:47 startas
+2026-09-25 11:31:59 2 pam. -2 min: groja freesound_community-handbell-81953.mp3
+2026-09-25 11:33:59 2 pam. prad탑ia: groja freesound_community-handbell-81953.mp3
+2026-09-25 11:35:59 2 pam. pabaiga: groja freesound_community-handbell-81953.mp3
+2026-09-25 11:39:59 2 pam. -2 min: nera garso takeliu
+2026-09-25 11:41:59 2 pam. prad탑ia: nera garso takeliu
+2026-09-25 11:42:59 2 pam. -2 min: groja skambutis double.wav
+2026-09-25 11:44:59 2 pam. prad탑ia: groja skambutis double.wav
+2026-09-25 11:46:59 2 pam. pabaiga: groja skambutis double.wav
+2026-09-25 12:16:01 startas
+2026-09-25 12:17:59 5 pam. -2 min: groja skambutis double.wav
+2026-09-25 12:19:59 5 pam. prad탑ia: groja skambutis double.wav
+2026-09-25 12:55:44 startas
+2026-09-25 13:04:59 5 pam. pabaiga: groja skambutis double.wav
+2026-09-25 13:22:59 6 pam. -2 min: groja skambutis double.wav
+2026-09-25 13:23:06 GROTUVO KLAIDA (skambutis double.wav): rc=1 $ErrorActionPreference='Stop'
+Add-Type -AssemblyName PresentationCore
+$p = New-Object System.Windows.Media.MediaPlayer
+$p.Open([uri]'C:\Users\User\Documents\skambutis\skambuteliukas\garsai\skambutis double.wav')
+# metaduomenys uzsikrauna asinchroniskai - laukiam iki 5 s
+$n = 0
+while (-not $p.NaturalDuration.HasTimeSpan -and $n -lt 50) { Start-Sleep -m 100; $n++ }
+$p.Volume = 1.0
+$p.Play()
+if ($p.N
+2026-09-25 13:24:59 6 pam. prad탑ia: groja skambutis double.wav
+2026-09-25 14:09:59 6 pam. pabaiga: nera garso takeliu
+2026-09-25 14:17:59 7 pam. -2 min: nera garso takeliu
+2026-09-25 14:18:18 bandomasis (pries): groja gracesoundproductions-airport-announcement-call-chime-start-and-finish-342984.mp3

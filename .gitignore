@@ -1,7 +1,6 @@
 # lokalūs nustatymai ir būsena
 config.json
 daemon.pid
-skambutis.log
 
 __pycache__/
 .DS_Store
