@@ -12,6 +12,18 @@ pabaigą (galima išjungti).
 
 Takelis kiekvienam skambučiui parenkamas **atsitiktinai** iš pažymėtų.
 
+Numatytas tvarkaraštis – 8 pamokos po 45 min, pradžia 08:30, pertraukos 10 min,
+po 4-os ir po 5-os pamokos ilgosios po 20 min:
+
+| Pam. | Laikas | | Pam. | Laikas |
+|---|---|---|---|---|
+| 1 | 08:30–09:15 | | 5 | 12:20–13:05 |
+| 2 | 09:25–10:10 | | 6 | 13:25–14:10 |
+| 3 | 10:20–11:05 | | 7 | 14:20–15:05 |
+| 4 | 11:15–12:00 | | 8 | 15:15–16:00 |
+
+Viso 24 skambučiai per dieną. Keičiama UI'e.
+
 ## Ko reikia
 
 Tik Python 3.8+ ir naršyklė. Jokių bibliotekų diegti nereikia.

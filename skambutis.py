@@ -23,9 +23,15 @@ DEFAULT = {
     "lead_ms": 200,        # kiek anksciau paleisti, kad garsas suskambetu tiksliai
     "ring_end": True,
     "days": [0, 1, 2, 3, 4],  # 0=pirmadienis
-    "lessons": [
-        {"start": "08:00", "end": "08:45"},
-        {"start": "08:55", "end": "09:40"},
+    "lessons": [   # 8 pamokos po 45 min, pertraukos 10 min
+        {"start": "08:30", "end": "09:15"},
+        {"start": "09:25", "end": "10:10"},
+        {"start": "10:20", "end": "11:05"},
+        {"start": "11:15", "end": "12:00"},   # po sios - ilgoji pertrauka (20 min)
+        {"start": "12:20", "end": "13:05"},   # po sios - ilgoji pertrauka (20 min)
+        {"start": "13:25", "end": "14:10"},
+        {"start": "14:20", "end": "15:05"},
+        {"start": "15:15", "end": "16:00"},
     ],
 }
 
