@@ -46,8 +46,8 @@ paties kompiuterio.
 ## Naudojimas
 
 1. **Garso takeliai** – mp3/wav failus įmesti į aplanką `garsai/` šalia
-   programos. Kas aplanke, tas ir naudojama; jei failų keli – kiekvienam
-   skambučiui parenkamas atsitiktinis. Varnelių nėra.
+   programos. Varnele takelį galima laikinai išjungti netrinant failo; jei
+   įjungtų keli – kiekvienam skambučiui parenkamas atsitiktinis.
 
    | Aplankas | Kam |
    |---|---|

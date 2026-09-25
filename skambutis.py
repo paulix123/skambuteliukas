@@ -22,6 +22,7 @@ PORT = 8777
 EXT = (".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".aiff")
 
 DEFAULT = {
+    "isjungti": [],        # takeliai, kuriu nenaudoti (pvz. "pries/varpelis.mp3")
     "pre_minutes": 2,
     "lead_ms": 200,        # kiek anksciau paleisti, kad garsas suskambetu tiksliai
     "ring_end": True,
@@ -83,12 +84,23 @@ def folder(tipas=None):
     return os.path.join(GARSAI, "pries") if tipas == "pries" else GARSAI
 
 
-def pool(tipas=None):
-    """Takeliai aplanke; jei pries/ tuscias - imam is bendro fondo."""
+def rel(path):
+    """Kelias configui: "varpelis.mp3" arba "pries/varpelis.mp3"."""
+    return os.path.relpath(path, GARSAI).replace(os.sep, "/")
+
+
+def files_in(tipas=None):
+    """Visi aplanko failai, ir ijungti, ir isjungti."""
     p = folder(tipas)
     os.makedirs(p, exist_ok=True)
-    files = sorted(os.path.join(p, f) for f in os.listdir(p) if f.lower().endswith(EXT))
-    return files if files or tipas != "pries" else pool()
+    return sorted(os.path.join(p, f) for f in os.listdir(p) if f.lower().endswith(EXT))
+
+
+def pool(tipas=None, cfg=None):
+    """Ijungti aplanko takeliai; jei pries/ neliko nė vieno - imam is bendro fondo."""
+    off = set((cfg or load()).get("isjungti", []))
+    files = [f for f in files_in(tipas) if rel(f) not in off]
+    return files if files or tipas != "pries" else pool(None, cfg)
 
 
 # --- grojimas ---------------------------------------------------------------
@@ -390,8 +402,12 @@ async function load(){
   garsai.textContent=d.garsai;
   takeliai.innerHTML=Object.entries(d.tipai).map(([k,pav])=>`
     <div style="border:1px solid #8884;border-radius:8px;padding:10px 14px;margin:8px 0">
-      <b>${pav}</b> ${d.savi[k]?"":"<span class='muted'>· iš bendro fondo</span>"}
-      <ul>${(d.takeliai[k].length?d.takeliai[k]:["(nėra failų)"]).map(f=>`<li>${f}</li>`).join("")}</ul>
+      <b>${pav}</b>
+      <ul>${d.failai[k].length
+        ? d.failai[k].map(f=>`<li><label><input type="checkbox" data-rel="${f.rel}" ${f.on?"checked":""}
+            onchange="save()"> ${f.name}</label></li>`).join("")
+        : "<li class='muted'>(aplankas tuščias)</li>"}</ul>
+      ${d.savi[k]?"":`<div class="muted">Gros iš bendro fondo: ${d.gros[k].join(", ")||"nieko"}</div>`}
       <button onclick="post('/aplankas',{kuris:'${k}'})">📂 Aplankas</button>
       <button onclick="post('/test',{tipas:'${k}'})">▶ Groti</button>
     </div>`).join("");
@@ -420,11 +436,12 @@ function drawLessons(){
 function addLesson(){cfg.lessons.push({start:"08:00",end:"08:45"});drawLessons()}
 function collect(){
   cfg.days=[...days.querySelectorAll("input:checked")].map(c=>+c.dataset.d);
+  cfg.isjungti=[...takeliai.querySelectorAll("input[data-rel]:not(:checked)")].map(c=>c.dataset.rel);
   cfg.pre_minutes=+pre.value; cfg.ring_end=end.checked; cfg.lead_ms=+lead.value;
   cfg.lessons=cfg.lessons.filter(l=>l.start&&l.end).sort((a,b)=>a.start.localeCompare(b.start));
   return cfg;
 }
-async function save(){const r=await post("/save",collect());cfg=r.cfg;drawLessons();flash("Išsaugota");refresh()}
+async function save(){const r=await post("/save",collect());cfg=r.cfg;flash("Išsaugota");await load()}
 async function toggle(){dbtn.disabled=true;await save();const r=await post("/daemon",{});dbtn.disabled=false;flash(r.msg||"");refresh()}
 async function quit(){
   await save(); await post("/quit",{});
@@ -459,8 +476,11 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/data":
             self._send(json.dumps({
                 "cfg": cfg, "garsai": GARSAI, "tipai": TIPAI,
-                "takeliai": {k: [os.path.basename(f) for f in pool(k)] for k in TIPAI},
-                "savi": {k: bool(pool(k)) and (k != "pries" or pool(k) != pool()) for k in TIPAI},
+                "failai": {k: [{"name": os.path.basename(f), "rel": rel(f),
+                                "on": rel(f) not in cfg.get("isjungti", [])}
+                               for f in files_in(k)] for k in TIPAI},
+                "gros": {k: [os.path.basename(f) for f in pool(k, cfg)] for k in TIPAI},
+                "savi": {k: pool(k, cfg) != pool(None, cfg) or k != "pries" for k in TIPAI},
                 "signalai": {n: bool(signal_file(n)) for n in SIGNALAI}}))
         elif self.path == "/log":
             try:
