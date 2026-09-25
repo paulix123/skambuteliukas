@@ -3,6 +3,7 @@
 
   python3 skambutis.py ui       - konfiguravimas narsykleje (active)
   python3 skambutis.py daemon   - fone sukasi ir groja (passive)
+  python3 skambutis.py info     - diagnostika: ka programa mato
   python3 skambutis.py test     - savikontrole
 """
 import json, os, random, shutil, subprocess, sys, threading, time, webbrowser
@@ -466,6 +467,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", ctype + "; charset=utf-8")
         self.send_header("Content-Length", str(len(b)))
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(b)
 
@@ -546,6 +548,29 @@ def ui():
 
 # --- savikontrole -----------------------------------------------------------
 
+def info():
+    """Diagnostika: ka programa realiai mato."""
+    cfg = load()
+    print(f"skriptas    : {SCRIPT}")
+    print(f"python      : {sys.executable}")
+    print(f"config      : {CFG}")
+    print(f"isjungti    : {cfg.get('isjungti')}")
+    print(f"pamoku      : {len(cfg['lessons'])}, dienos: {cfg['days']}, pries: {cfg['pre_minutes']} min")
+    for tipas, pav in TIPAI.items():
+        p = folder(tipas if tipas == "pries" else None)
+        visi = os.listdir(p) if os.path.isdir(p) else ["<NERA APLANKO>"]
+        print(f"\n{pav}  ({p})")
+        print(f"  aplanke      : {visi}")
+        print(f"  tinkami      : {[os.path.basename(f) for f in files_in(tipas)]}")
+        print(f"  gros         : {[os.path.basename(f) for f in pool(tipas, cfg)]}")
+    print(f"\npranesimai  : {[n for n in SIGNALAI if signal_file(n)]}")
+    pid, alive = daemon_state()
+    print(f"fonas       : pid={pid} gyvas={alive}")
+    print(f"autostartas : {AUTOSTART if AUTOSTART and os.path.exists(AUTOSTART) else 'neiraytas'}")
+    nb = next_bell(cfg)
+    print(f"sekantis    : {nb or 'siandien daugiau nera'}")
+
+
 def selftest():
     cfg = {**DEFAULT, "lessons": [{"start": "08:00", "end": "08:45"}], "pre_minutes": 2}
     t = bell_times(cfg, date(2026, 9, 21))  # pirmadienis
@@ -569,5 +594,7 @@ if __name__ == "__main__":
         play(sys.argv[2])
     elif cmd == "test":
         selftest()
+    elif cmd == "info":
+        info()
     else:
         ui()
