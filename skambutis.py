@@ -32,7 +32,7 @@ DEFAULT = {
 
 def load():
     try:
-        with open(CFG) as f:
+        with open(CFG, encoding="utf-8") as f:
             return {**DEFAULT, **json.load(f)}
     except (FileNotFoundError, json.JSONDecodeError):
         save(DEFAULT)
@@ -40,14 +40,15 @@ def load():
 
 
 def save(cfg):
-    with open(CFG, "w") as f:
+    with open(CFG, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2, ensure_ascii=False)
 
 
 def log(msg):
     line = f"{datetime.now():%Y-%m-%d %H:%M:%S} {msg}"
-    print(line, flush=True)
-    with open(LOG, "a") as f:
+    if sys.stdout:  # pythonw.exe konsoles neturi
+        print(line, flush=True)
+    with open(LOG, "a", encoding="utf-8") as f:
         f.write(line + "\n")
 
 
@@ -128,7 +129,7 @@ def bell_times(cfg, d=None):
         return {}
     out = {}
     for i, les in enumerate(cfg["lessons"], 1):
-        out[minus(les["start"], cfg["pre_minutes"])] = f"{i} pam. − {cfg['pre_minutes']} min"
+        out[minus(les["start"], cfg["pre_minutes"])] = f"{i} pam. -{cfg['pre_minutes']} min"
         out[les["start"]] = f"{i} pam. pradžia"
         if cfg.get("ring_end"):
             out[les["end"]] = f"{i} pam. pabaiga"
@@ -411,7 +412,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(json.dumps({"cfg": cfg, "available": available_tracks(), "garsai": GARSAI}))
         elif self.path == "/log":
             try:
-                lines = open(LOG).read().splitlines()[-20:]
+                lines = open(LOG, encoding="utf-8", errors="replace").read().splitlines()[-20:]
             except OSError:
                 lines = []
             self._send(json.dumps({"log": "\n".join(lines)}))
@@ -465,11 +466,13 @@ def ui():
 def selftest():
     cfg = {**DEFAULT, "lessons": [{"start": "08:00", "end": "08:45"}], "pre_minutes": 2}
     t = bell_times(cfg, date(2026, 9, 21))  # pirmadienis
-    assert t == {"07:58": "1 pam. − 2 min", "08:00": "1 pam. pradžia", "08:45": "1 pam. pabaiga"}, t
+    assert t == {"07:58": "1 pam. -2 min", "08:00": "1 pam. pradžia", "08:45": "1 pam. pabaiga"}, t
     assert bell_times(cfg, date(2026, 9, 20)) == {}  # sekmadienis
     assert minus("00:01", 2) == "23:59"
     assert minus("08:00", 0) == "08:00"
     assert "08:45" not in bell_times({**cfg, "ring_end": False}, date(2026, 9, 21))
+    for lab in t.values():  # Windows lokale (cp1252) turi suvirskinti kiekviena etikete
+        lab.encode("cp1252")
     print("OK")
 
 
